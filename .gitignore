@@ -1,0 +1,10 @@
+# generated files
+/config.h
+/dmenu
+/stest
+
+# backup files
+.orig
+
+# Object files
+*.o
