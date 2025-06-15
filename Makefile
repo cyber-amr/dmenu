@@ -11,8 +11,8 @@ all: dmenu stest
 .c.o:
 	$(CC) -c $(CFLAGS) $<
 
-config.h:
-	cp config.def.h $@
+config.h: config.def.h
+	cp -f config.def.h $@
 
 $(OBJ): arg.h config.h config.mk drw.h
 
