@@ -671,11 +671,6 @@ readstdin(void)
 	size_t i, itemsiz = 0, linesiz = 0;
 	ssize_t len;
 
-	if(passwd){
-		inputw = lines = 0;
-		return;
-	}
-
 	/* read each line from stdin and add it to the item list */
 	for (i = 0; (len = getline(&line, &linesiz, stdin)) != -1; i++) {
 		if (i + 1 >= itemsiz) {
