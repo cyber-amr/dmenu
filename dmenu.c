@@ -147,15 +147,17 @@ drawmenu(void)
 {
 	unsigned int curpos;
 	struct item *item;
-	int x = 0, y = 0, w;
+	int x = 0, w;
 	char *censort;
+	int input_y = topbar ? 0 : (lines > 0 ? lines * bh : 0);
+	int list_y = (!topbar && lines > 0) ? lines * bh : 0;
 
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
 
 	if (prompt && *prompt) {
 		drw_setscheme(drw, scheme[SchemeSel]);
-		x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, prompt, 0);
+		x = drw_text(drw, x, input_y, promptw, bh, lrpad / 2, prompt, 0);
 	}
 	/* draw input field */
 	w = (lines > 0 || !matches) ? mw - x : inputw;
@@ -163,20 +165,24 @@ drawmenu(void)
 	if (passwd) {
 	        censort = ecalloc(1, sizeof(text));
 		memset(censort, '*', strlen(text));
-		drw_text(drw, x, 0, w, bh, lrpad / 2, censort, 0);
+		drw_text(drw, x, input_y, w, bh, lrpad / 2, censort, 0);
 		free(censort);
-	} else drw_text(drw, x, 0, w, bh, lrpad / 2, text, 0);
+	} else drw_text(drw, x, input_y, w, bh, lrpad / 2, text, 0);
 
 	curpos = TEXTW(text) - TEXTW(&text[cursor]);
 	if ((curpos += lrpad / 2 - 1) < w) {
 		drw_setscheme(drw, scheme[SchemeNorm]);
-		drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
+		drw_rect(drw, x + curpos, input_y + 2, 2, input_y + (bh - 4), 1, 0);
 	}
 
 	if (lines > 0) {
 		/* draw vertical list */
-		for (item = curr; item != next; item = item->right)
-			drawitem(item, x, y += bh, mw - x);
+		for (item = curr; item != next; item = item->right) {
+			if (topbar)
+				drawitem(item, x, list_y += bh, mw - x);
+			else
+				drawitem(item, x, list_y -= bh, mw - x);
+		}
 	} else if (matches) {
 		/* draw horizontal list */
 		x += inputw;
@@ -474,8 +480,11 @@ insert:
 		/* fallthrough */
 	case XK_Up:
 	case XK_KP_Up:
-		if (sel && sel->left && (sel = sel->left)->right == curr) {
+		if (topbar && sel && sel->left && (sel = sel->left)->right == curr) {
 			curr = prev;
+			calcoffsets();
+		} else if (!topbar && sel && sel->right && (sel = sel->right) == next) {
+			curr = next;
 			calcoffsets();
 		}
 		break;
@@ -514,8 +523,11 @@ insert:
 		/* fallthrough */
 	case XK_Down:
 	case XK_KP_Down:
-		if (sel && sel->right && (sel = sel->right) == next) {
+		if (topbar && sel && sel->right && (sel = sel->right) == next) {
 			curr = next;
+			calcoffsets();
+		} else if (!topbar && sel && sel->left && (sel = sel->left)->right == curr) {
+			curr = prev;
 			calcoffsets();
 		}
 		break;
@@ -538,7 +550,9 @@ buttonpress(XEvent *e)
 {
 	struct item *item;
 	XButtonPressedEvent *ev = &e->xbutton;
-	int x = 0, y = 0, h = bh, w;
+	int x = 0, h = bh, w;
+	int input_y = topbar ? 0 : (lines > 0 ? lines * bh : 0);
+	int list_y = (!topbar && lines > 0) ? lines * bh : 0;
 
 	if (ev->window != win)
 		return;
@@ -559,7 +573,7 @@ buttonpress(XEvent *e)
 	if (ev->button == Button1 &&
 	   ((lines <= 0 && ev->x >= 0 && ev->x <= x + w +
 	   ((!prev || !curr->left) ? TEXTW("<") : 0)) ||
-	   (lines > 0 && ev->y >= y && ev->y <= y + h))) {
+	   (lines > 0 && ev->y >= input_y && ev->y <= input_y + h))) {
 		insert(NULL, -cursor);
 		drawmenu();
 		return;
@@ -593,8 +607,12 @@ buttonpress(XEvent *e)
 		/* vertical list: (ctrl)left-click on item */
 		w = mw - x;
 		for (item = curr; item != next; item = item->right) {
-			y += h;
-			if (ev->y >= y && ev->y <= (y + h)) {
+			if (topbar)
+				list_y += h;
+			else
+				list_y -= h;
+
+			if (ev->y >= list_y && ev->y <= (list_y + h)) {
 				puts(item->text);
 				if (!(ev->state & ControlMask))
 					exit(0);
